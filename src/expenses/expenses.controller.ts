@@ -1,0 +1,53 @@
+import {
+
+ Controller,
+
+ Post,
+
+ Body,
+
+ Get
+
+} from '@nestjs/common';
+
+import { ExpensesService }
+
+from './expenses.service';
+
+@Controller('expenses')
+
+export class ExpensesController{
+
+ constructor(
+
+  private readonly expensesService:
+
+  ExpensesService
+
+ ){}
+
+ @Post()
+
+ create(
+
+  @Body() body:any
+
+ ){
+
+  return this.expensesService.create(
+
+   body
+
+  );
+
+ }
+
+ @Get()
+
+ findAll(){
+
+  return this.expensesService.findAll();
+
+ }
+
+}
