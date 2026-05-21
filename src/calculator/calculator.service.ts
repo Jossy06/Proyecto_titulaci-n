@@ -1,217 +1,93 @@
 import {
-
- Injectable,
-
- BadRequestException
-
+  Injectable,
+  BadRequestException,
 } from '@nestjs/common';
 
-import {
+import { InjectRepository } from '@nestjs/typeorm';
 
- InjectRepository
+import { Repository } from 'typeorm';
 
-} from '@nestjs/typeorm';
+import { Expense } from '../expenses/entities/expense.entity';
 
-import {
+import { BeautyService } from '../services/entities/service.entity';
 
- Repository
-
-} from 'typeorm';
-
-import {
-
- Expense
-
-} from '../expenses/entities/expense.entity';
-
-import {
-
- BeautyService
-
-} from '../services/entities/service.entity';
+import { ServiceMaterial } from '../service-materials/entities/service-material.entity';
 
 @Injectable()
+export class CalculatorService {
+  constructor(
+    @InjectRepository(Expense)
+    private readonly expenseRepository: Repository<Expense>,
 
-export class CalculatorService{
+    @InjectRepository(BeautyService)
+    private readonly serviceRepository: Repository<BeautyService>,
 
- constructor(
+    @InjectRepository(ServiceMaterial)
+    private readonly serviceMaterialRepository: Repository<ServiceMaterial>,
+  ) {}
 
-  @InjectRepository(
+  async calculate(body: any) {
+    if (
+      !body.service_id ||
+      body.desired_profit === undefined
+    ) {
+      throw new BadRequestException('Faltan datos');
+    }
 
-   Expense
+    const service = await this.serviceRepository.findOne({
+      where: {
+        id: body.service_id,
+      },
+    });
 
-  )
+    if (!service) {
+      throw new BadRequestException('Servicio no encontrado');
+    }
 
-  private readonly expenseRepository:
+    const serviceMaterials = await this.serviceMaterialRepository.find({
+      where: {
+        service_id: body.service_id,
+      },
+      relations: {
+        material: true,
+      },
+    });
 
-  Repository<Expense>,
+    const materialCost = serviceMaterials.reduce(
+      (total, item) =>
+        total +
+        Number(item.material.unit_price) *
+        Number(item.quantity),
+      0,
+    );
 
-  @InjectRepository(
+    const expenses = await this.expenseRepository.find();
 
-   BeautyService
+    const totalExpenses = expenses.reduce(
+      (total, expense) =>
+        total + Number(expense.amount),
+      0,
+    );
 
-  )
+    const operationalCost = totalExpenses / 100;
 
-  private readonly serviceRepository:
+    const laborCost = service.duration_minutes * 0.15;
 
-  Repository<BeautyService>
+    const desiredProfit = Number(body.desired_profit);
 
- ){}
+    const finalPrice =
+      materialCost +
+      laborCost +
+      operationalCost +
+      desiredProfit;
 
- async calculate(
-
-  body:any
-
- ){
-
-  if(
-
-   !body.service_id ||
-
-   body.material_cost===undefined ||
-
-   body.desired_profit===undefined
-
-  ){
-
-   throw new BadRequestException(
-
-    'Faltan datos'
-
-   );
-
+    return {
+      service: service.name,
+      materials: materialCost.toFixed(2),
+      labor: laborCost.toFixed(2),
+      operational: operationalCost.toFixed(2),
+      profit: desiredProfit.toFixed(2),
+      suggested_price: finalPrice.toFixed(2),
+    };
   }
-
-  const service=
-
-  await this.serviceRepository.findOne({
-
-   where:{
-
-    id:body.service_id
-
-   }
-
-  });
-
-  if(
-
-   !service
-
-  ){
-
-   throw new BadRequestException(
-
-    'Servicio no encontrado'
-
-   );
-
-  }
-
-  const expenses=
-
-  await this.expenseRepository.find();
-
-  const totalExpenses=
-
-  expenses.reduce(
-
-   (
-
-    total,
-
-    expense
-
-   )=>
-
-   total+
-
-   Number(
-
-    expense.amount
-
-   ),
-
-   0
-
-  );
-
-  const operationalCost=
-
-  totalExpenses/100;
-
-  const laborCost=
-
-  service.duration_minutes*
-
-  0.15;
-
-  const materialCost=
-
-  Number(
-
-   body.material_cost
-
-  );
-
-  const desiredProfit=
-
-  Number(
-
-   body.desired_profit
-
-  );
-
-  const finalPrice=
-
-  materialCost+
-
-  laborCost+
-
-  operationalCost+
-
-  desiredProfit;
-
-  return{
-
-   service:
-
-   service.name,
-
-   materials:
-
-   materialCost,
-
-   labor:
-
-   Number(
-
-    laborCost
-
-   ).toFixed(2),
-
-   operational:
-
-   Number(
-
-    operationalCost
-
-   ).toFixed(2),
-
-   profit:
-
-   desiredProfit,
-
-   suggested_price:
-
-   Number(
-
-    finalPrice
-
-   ).toFixed(2)
-
-  };
-
- }
-
 }
